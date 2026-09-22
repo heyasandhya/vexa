@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import Header from "@/components/Header";
+import { ClerkProvider } from "@clerk/nextjs";
 
 const lora = Lora({
   subsets: ["latin"],
@@ -20,12 +21,16 @@ const dmSans = DM_Sans({
 
 
 export const metadata: Metadata = {
-  title: "Forge-AI App Builder",
+  title: "vexa-AI App Builder",
   description: "",
+  icons: {
+    icon:"/logo-bg.png",
+  }
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
+    <ClerkProvider>
     <html lang="en" suppressHydrationWarning>
       <body className={`${lora.variable} ${dmSans.variable} font-sans`}>
         <ThemeProvider
@@ -40,5 +45,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
       </body>
     </html>
+    </ClerkProvider>
   );
 }
