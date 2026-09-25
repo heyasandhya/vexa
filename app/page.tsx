@@ -1,16 +1,16 @@
 "use client";
 
 import { HoleBackground } from "@/components/animate-ui/components/backgrounds/hole";
-import { BlueTitle, GrayTitle } from "@/components/Reusables";
+import { BlueTitle, GrayTitle, SectionHeading, SectionLabel } from "@/components/Reusables";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PLACEHOLDERS, SUGGESTIONS } from "@/lib/data";
-
+import { FEATURES, PLACEHOLDERS, STEPS, SUGGESTIONS } from "@/lib/data";
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import { cn } from "cn";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+
 
 export default function Home() {
   const { isSignedIn } = useAuth();
@@ -291,8 +291,113 @@ export default function Home() {
         </div>
       </div>
     </section>
+
+    <section className="px-4 pb-32">
+      <div className="mx-auto mb-14 max-w-5xl text-center">
+        <SectionLabel>Everything you need</SectionLabel>
+        <SectionHeading gray="From prompt" blue="to Production." />
+      </div>
+
+      <div className="mx-auto grid max-w-5xl grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/6 sm:grid-cols-2 lg:grid-cols-3">
+        {FEATURES.map(({ icon: Icon, label, desc }) => {
+          return (
+            <div
+              key={label}
+              className="group bg-[#0a0a0a] p-7 hover:bg-[#0f0f0f]"
+            >
+              <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg border border-white/8 bg-white/4 group-hover:border-white/15 group-hover:bg-white/8">
+                <Icon className="h-4 w-4 text-white/60 group-hover:text-blue-400/70" />
+              </div>
+              <p className="mb-2 text-sm font-semibold">{label}</p>
+              <p className="text-sm leading-relaxed text-white/40">{desc}</p>
+
+            </div>
+          );
+        })}
+      </div>
+    </section>
+
+    <section className="px-4 pb-32">
+      <div className="mx-auto mb-14 max-w-5xl text-center">
+        <SectionLabel>How it works</SectionLabel>
+        <SectionHeading gray="Four steps" blue="to a working app." />
+      </div>
+
+      <div className="mx-auto max-w-3xl">
+        {STEPS.map((step, index) => (
+          <div key={step.number} className="flex gap-6">
+            <div className="flex flex-col items-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/4">
+                <span className="font-mono text-xs font-semibold text-white/50">
+                  {step.number}
+                </span>
+              </div>
+
+              {index < STEPS.length - 1 && (
+                <div className="mt-2 h-full w-px bg-white/6" />
+              )}
+            </div>
+
+            <div className="pb-10 pt-1.5">
+              <p className="mb-1.5 text-sm font-semibold sm:text-base">
+                {step.label}
+              </p>
+
+              <p className="text-sm leading-relaxed text-white/40">
+                {step.desc}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </section>
+
+
+    <section className="px-4 pb-32">
+      <div className="mx-auto mb-14 max-w-5xl text-center">
+        <SectionLabel>Simple pricing</SectionLabel>
+        <SectionHeading gray="Start free" blue="scale when ready." />
+        <p className="mx-auto mt-4 max-w-sm text-sm text-white/35">No credit card required. Upgrade or downgrade anytime.</p>
+      </div>
+
+      <div className="mx-auto max-w-3xl">{/* Pricing Table */}</div>
+    </section>
+
+    <section className="relative mx-auto mb-32 max-w-5xl overflow-hidden rounded-2xl border border-white/8 px-10 py-24 text-center">
+      <HoleBackground
+        strokeColor="rgba(255,255,255,0.05)"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)",
+        }}
+      />
+
+      <SectionHeading gray="Start building," blue="for free." />
+
+      <p className="mb-8 text-sm leading-relaxed text-white/40">
+        Get 10 free generations on sign up. No credit card required.
+        <br />
+        Upgrade when you&apos;re ready.
+      </p>
+
+      <SignInButton mode="modal">
+        <Button
+          size="lg"
+          className="relative h-11 rounded-full bg-white px-8"
+        >
+          Get started free
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </SignInButton>
+
+      <footer className="relative z-10 py-12 mx-auto px-6 flex flex-wrap items-center justify-center text-stone-400">
+        Made with ❤️ by sandhya
+      </footer>
+
+    </section>
   </main>
-
-
-
 }
