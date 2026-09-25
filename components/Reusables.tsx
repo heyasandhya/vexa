@@ -18,7 +18,7 @@ export const BlueTitle =
 		</span>
 	};
 
-export const sectionLabel =
+export const SectionLabel =
 	({ children }:
 		{ children: React.ReactNode }) => {
 		return (<p
