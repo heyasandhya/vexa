@@ -14,7 +14,8 @@ export const BlueTitle =
 		className?: string;
 	}) => {
 		return <span
-			className={`bg-linear-to-br font-serif font-blue-300 via-blue-600 bg-clip-text text-transparent &{className}`}>{children}
+			className={`bg-linear-to-br from-blue-200 via-blue-600 to-blue-400 bg-clip-text text-transparent font-serif ${className}`}
+  >{children}
 		</span>
 	};
 
