@@ -77,7 +77,7 @@ export default function Home() {
         <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> Powered by Gemini 3.5 Flash
       </Badge>
 
-      <h1 className="mx-auto max-w-3xl text-balance font-serif text-5xl leading-tight tracking-tight sm:text-5xl lg:text-7xl z-10">
+      <h1 className="mx-auto max-w-3xl text-balance font-serif text-5xl leading-[1.1] tracking-tight sm:text-5xl lg:text-7xl z-10">
         <GrayTitle>Build your dream with Vexa</GrayTitle>
         <br />
         <BlueTitle>using a single prompt</BlueTitle>
