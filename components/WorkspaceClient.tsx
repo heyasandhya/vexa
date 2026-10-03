@@ -5,6 +5,7 @@ import { CodePanel } from "./CodePanel";
 import { FileData, Message, StatusStep } from "@/types/workspace";
 import ChatPanel from "./ChatPanel";
 import { MIN_CREDITS_TO_GENERATE } from "@/lib/constants";
+import { toast } from "sonner";
 
 interface WorkspaceClientProps {
 	initialPrompt: string | null;
@@ -69,15 +70,30 @@ const WorkspaceClient = ({
 			try {
 				const res = await fetch("/api/gen-ai-code", {
 					method: "POST",
-					headers: { "Content-Type" : "application/json" },
+					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						workspaceId: currentWorkspaceId,
 						userId,
-						messages: [...currentMessages,userMessage],
+						messages: [...currentMessages, userMessage],
 						fileData: fileDataRef.current,
 					}),
 				});
-			} catch (error){}
+
+				if (res.status === 402) {
+					toast.error("Not enough credits.");
+					setMessages((prev) => prev.slice(0, -1));
+					return;
+				}
+
+				if (res.status === 429) {
+					toast.error("Too many requests. Please slow down.");
+					setMessages((prev) => prev.slice(0, -1));
+					return;
+				}
+
+				if (!res.ok || !res.body) throw new Error("Generation failed");
+			} catch (error) { }
+
 		},
 		[credits, isGenerating, userId],
 	);
