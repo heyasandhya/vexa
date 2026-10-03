@@ -92,6 +92,10 @@ const WorkspaceClient = ({
 				}
 
 				if (!res.ok || !res.body) throw new Error("Generation failed");
+
+				const reader = res.body.getReader();
+				const decoder = new TextDecoder();
+				let buffer = "";
 			} catch (error) { }
 
 		},
