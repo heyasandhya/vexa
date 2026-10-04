@@ -171,12 +171,14 @@ export async function POST(request: NextRequest) {
 						temperature: 0.7,
 
 						// Force JSON output - Gemini will never wrap the response in markdown
+						
 						responseMimeType: "application/json",
 
 						thinkingConfig: {
 							// Gemini emits thought chunks before the actual output.
 							// We extract short labels from them and emit as status events
 							// so the user sees "Designing layout...", "Adding interactivity..." etc.
+							
 							includeThoughts: true,
 						},
 					},
@@ -215,9 +217,12 @@ export async function POST(request: NextRequest) {
 					dependencies: Record<string, string>;
 				};
 
+				console.log("RAW AI OUTPUT:", accumulated);
 				try {
 					parsed = JSON.parse(accumulated);
-				} catch {
+				} catch (error) {
+					console.error("JSON PARSE ERROR:", error);
+					console.log("RAW AI OUTPUT:", accumulated);
 					enqueue(
 						sseEvent("error", {
 							message: "AI returned invalid JSON. Please try again.",
@@ -260,28 +265,31 @@ export async function POST(request: NextRequest) {
 				];
 
 
-				const [workspace] = await db.$transaction([
-					workspaceId
-						? db.workspace.update({
+				const workspace = await db.$transaction(async (tx) => {
+					const ws = workspaceId
+						? await tx.workspace.update({
 							where: { id: workspaceId, userId },
 							data: {
 								messages: updatedMessages as never,
 								fileData: newFileData as never,
 							},
 						})
-						: db.workspace.create({
+						: await tx.workspace.create({
 							data: {
 								userId,
 								title: aiTitle ?? lastUserMessage.content.slice(0, 80),
 								messages: updatedMessages as never,
 								fileData: newFileData as never,
 							},
-						}),
-					db.user.update({
+						})
+					await tx.user.update({
 						where: { id: userId },
 						data: { credits: { decrement: CREDIT_COST_PER_GENERATION } },
-					}),
-				]);
+					})
+
+					return ws;
+				}, { timeout: 200000 },
+				);
 
 
 				const updatedUser = await db.user.findUnique({
