@@ -125,20 +125,21 @@ export async function POST(request: NextRequest) {
 	}
 
 	const body = await request.json();
-	const { workspaceId, userId, message, fileData } = body as {
+	const { workspaceId, userId, messages, fileData } = body as {
 		workspaceId: string | null;
 		userId: string;
-		message: Message[];
+		messages: Message[];
 		fileData: FileData | null;
 	};
 
-	if (!message?.length) {
+
+	if (!messages?.length) {
 		return Response.json({ message: "No message provided" }, { status: 400 });
 	}
 
 
 	const user = await db.user.findUnique({
-		where: { id: userId, clerkId },
+		where: { clerkId },
 		select: { id: true, credits: true },
 	});
 
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
 
 
 			try {
-				const contents = buildContents(message, fileData);
+				const contents = buildContents(messages, fileData);
 
 				const geminiStream = await ai.models.generateContentStream({
 					model: "gemini-3.5-flash",
@@ -198,11 +199,11 @@ export async function POST(request: NextRequest) {
 								if (label) {
 									enqueue(sseEvent("status", { message: label }));
 									lastEmitTime = now;
+								} else {
+									// Actual JSON output
+									accumulated += part.text;
 								}
 							}
-						} else {
-							// Actual JSON output
-							accumulated += part.text;
 						}
 					}
 				}
@@ -252,9 +253,9 @@ export async function POST(request: NextRequest) {
 
 				enqueue(sseEvent("status", { message: "Saving…" }));
 
-				const lastUserMessage = message[message.length - 1];
+				const lastUserMessage = messages[messages.length - 1];
 				const updatedMessages: Message[] = [
-					...message,
+					...messages,
 					{ role: "assistant", content: assistantMessage },
 				];
 
