@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { CodePanel } from "./CodePanel";
-import { FileData, Message, StatusStep } from "@/types/workspace";
+import { FileData, Message, StatusStep, WorkspaceData } from "@/types/workspace";
 import ChatPanel from "./ChatPanel";
 import { MIN_CREDITS_TO_GENERATE } from "@/lib/constants";
 import { toast } from "sonner";
@@ -12,21 +12,49 @@ interface WorkspaceClientProps {
 	userCredits: number;
 	userId: string;
 	userPlan: string;
+	workspace: WorkspaceData | null;
+}
+
+function parseMessages(raw: unknown): Message[] {
+	if (!Array.isArray(raw)) return [];
+
+	return raw.filter(
+		(m): m is Message =>
+			typeof m === "object" &&
+			m !== null &&
+			"role" in m &&
+			"content" in m
+	);
+}
+
+function parseFileData(raw: unknown): FileData | null {
+	if (!raw || typeof raw !== "object") return null;
+
+	const f = raw as Record<string, unknown>;
+
+	if (!f.files || !f.dependencies) return null;
+
+	return raw as FileData;
 }
 
 const WorkspaceClient = ({
 	initialPrompt,
 	userCredits,
+	workspace,
 	userId,
 	userPlan,
 }: WorkspaceClientProps) => {
-	const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-	const [messages, setMessages] = useState<Message[]>([]);
+	const [workspaceId, setWorkspaceId] = useState<string | null>(workspace?.id ?? null);
+	const [messages, setMessages] = useState<Message[]>(
+		parseMessages(workspace?.messages),
+	);
+
 	const [credits, setCredits] = useState(userCredits);
-	const [fileData, setFileData] = useState<FileData | null>(null);
+	const [fileData, setFileData] = useState<FileData | null>(
+		parseFileData(workspace?.fileData)
+	);
 
 	const [isGenerating, setIsGenerating] = useState(false);
-
 	const [statusLog, setStatusLog] = useState<StatusStep[]>([]);
 
 	const messagesRef = useRef<Message[]>(messages);
@@ -47,6 +75,25 @@ const WorkspaceClient = ({
 	const handleFilePatch = useCallback((patches: FileData) => {
 		setFileData(patches);
 	}, []);
+
+	const pushStep = (label: string) => {
+		setStatusLog((prev) => [
+			...prev.map((s, i) =>
+				i === prev.length - 1 ? { ...s, status: "done" as const } : s,
+			),
+			{ label, status: "running" as const },
+		]);
+	};
+
+	const completeSteps = () => {
+		setStatusLog((prev) =>
+			prev.map((s, i) =>
+				i === prev.length - 1 ? { ...s, status: "done" as const } : s,
+			),
+		);
+	};
+
+
 
 	const handleGenerate = useCallback(
 		async (prompt: string, imageUrl?: string) => {
@@ -91,13 +138,74 @@ const WorkspaceClient = ({
 					return;
 				}
 
-				if (!res.ok || !res.body) throw new Error("Generation failed");
+				if (!res.ok || !res.body) {
+					throw new Error(`Generation failed (${res.status})`);
+				}
 
 				const reader = res.body.getReader();
 				const decoder = new TextDecoder();
 				let buffer = "";
-			} catch (error) { }
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
 
+					buffer += decoder.decode(value, { stream: true });
+
+					const lines = buffer.split("\n\n");
+
+					// Example buffer after a few chunks might look like:
+					// "data: {...}\n\ndata: {...}\n\ndata: {inc"
+					//
+					// After split:
+					// ["data: {...}", "data: {...}", "data: {inc"]
+
+					buffer = lines.pop() ?? "";
+
+					for (const line of lines) {
+						if (!line.startsWith("data: ")) continue;
+
+						try {
+							// Strip "data: " prefix (6 characters) and parse JSON payload
+							const event = JSON.parse(line.slice(6));
+
+							if (event.type === "status") {
+								// Gemini thought label — adds a new step to the status log
+								// e.g. "Designing layout...", "Adding interactivity..."
+								pushStep(event.message);
+							} else if (event.type === "done") {
+								completeSteps();
+
+								setWorkspaceId(event.workspaceId);
+								setFileData(event.fileData);
+								setCredits(event.creditsRemaining);
+
+								setMessages((prev) => [
+									...prev,
+									{ role: "assistant", content: event.assistantMessage },
+								]);
+
+								window.history.replaceState(
+									null,
+									"",
+									`/workspace?id=${event.workspaceId}`
+								);
+							} else if (event.type === "error") {
+								throw new Error(event.message);
+							}
+						} catch (error) {
+							// skip malformed SSE lines
+						}
+					}
+				}
+			} catch (err) {
+				toast.error(
+					err instanceof Error ? err.message : "Something went wrnog.",
+				);
+				setMessages((prev) => prev.slice(0, -1));
+			} finally {
+				setIsGenerating(false);
+				setStatusLog([]);
+			}
 		},
 		[credits, isGenerating, userId],
 	);
@@ -116,7 +224,7 @@ const WorkspaceClient = ({
 				onGenerate={handleGenerate}
 				userId={userId}
 				workspaceId={workspaceId}
-				appTitle={'Test Title'}
+				appTitle={fileData?.title ?? workspace?.title ?? null}
 			/>
 
 			{/*code panel-right */}
