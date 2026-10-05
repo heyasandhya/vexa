@@ -4,6 +4,7 @@ import { FileData, Message } from "@/types/workspace";
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { GoogleGenAI } from "@google/genai"
+import { aj } from "@/lib/generated/prisma/arcjet";
 
 function trimHistory(message: Message[]): Message[] {
 	if (message.length <= 10) return message;
@@ -132,11 +133,32 @@ export async function POST(request: NextRequest) {
 		fileData: FileData | null;
 	};
 
-
 	if (!messages?.length) {
 		return Response.json({ message: "No message provided" }, { status: 400 });
 	}
 
+	// Reconstruct a new Request with the same body for Arcjet
+	const arcjetReq = new Request(request.url, {
+		method: request.method,
+		headers: request.headers,
+		body: JSON.stringify(body),
+	});
+
+	const lastUserMessage =
+		[...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+	const decision = await aj.protect(arcjetReq, {
+		requested: 1,
+		userId: clerkId,
+		detectPromptInjectionMessage: lastUserMessage,
+	});
+
+	if (decision.isDenied()) {
+		// Return the reason type as the message - rateLimit, bot, promptInjection, etc.
+		return Response.json(
+			{ message: decision.reason?.type ?? "Request blocked" },
+			{ status: 429 }
+		);
+	}
 
 	const user = await db.user.findUnique({
 		where: { clerkId },
@@ -171,14 +193,14 @@ export async function POST(request: NextRequest) {
 						temperature: 0.7,
 
 						// Force JSON output - Gemini will never wrap the response in markdown
-						
+
 						responseMimeType: "application/json",
 
 						thinkingConfig: {
 							// Gemini emits thought chunks before the actual output.
 							// We extract short labels from them and emit as status events
 							// so the user sees "Designing layout...", "Adding interactivity..." etc.
-							
+
 							includeThoughts: true,
 						},
 					},
@@ -201,11 +223,11 @@ export async function POST(request: NextRequest) {
 								if (label) {
 									enqueue(sseEvent("status", { message: label }));
 									lastEmitTime = now;
-								} else {
-									// Actual JSON output
-									accumulated += part.text;
 								}
 							}
+						} else {
+							// Actual JSON output
+							accumulated += part.text;
 						}
 					}
 				}
@@ -265,32 +287,28 @@ export async function POST(request: NextRequest) {
 				];
 
 
-				const workspace = await db.$transaction(async (tx) => {
-					const ws = workspaceId
-						? await tx.workspace.update({
+				const [workspace] = await db.$transaction([
+					workspaceId
+						? db.workspace.update({
 							where: { id: workspaceId, userId },
 							data: {
 								messages: updatedMessages as never,
 								fileData: newFileData as never,
 							},
 						})
-						: await tx.workspace.create({
+						: db.workspace.create({
 							data: {
 								userId,
 								title: aiTitle ?? lastUserMessage.content.slice(0, 80),
 								messages: updatedMessages as never,
 								fileData: newFileData as never,
 							},
-						})
-					await tx.user.update({
+						}),
+					db.user.update({
 						where: { id: userId },
 						data: { credits: { decrement: CREDIT_COST_PER_GENERATION } },
-					})
-
-					return ws;
-				}, { timeout: 200000 },
-				);
-
+					}),
+				]);
 
 				const updatedUser = await db.user.findUnique({
 					where: { id: userId },
