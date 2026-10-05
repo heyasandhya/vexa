@@ -7,7 +7,7 @@ import { BlueTitle } from "./Reusables";
 import PricingModal from "./PricingModal";
 import { cn } from "cn";
 import { steps } from "motion/react";
-import { ArrowUp, Check, Loader2, Paperclip } from "lucide-react";
+import { ArrowUp, Check, Loader2, Paperclip, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ChatPanelProps {
@@ -21,6 +21,7 @@ interface ChatPanelProps {
 	userId: string;
 	workspaceId: string | null;
 	appTitle: string | null;
+	onStop: ()=> void;
 }
 
 const ChatPanel = (
@@ -34,6 +35,7 @@ const ChatPanel = (
 		onGenerate,
 		userId,
 		workspaceId,
+		onStop,
 		appTitle,
 	}: ChatPanelProps) => {
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -253,6 +255,15 @@ const ChatPanel = (
 							>
 								<Paperclip className="h-3.5 w-3.5" />
 							</Button>
+								{isGenerating || isImproving ? (
+									<Button
+										size="icon"
+										onClick={onStop}
+										className="h-7 w-7 rounded-lg bg-white/10 text-white/60 hover:bg-white/20 hover:text-white active:scale-95 transition-all"
+									>
+										<Square className="h-3 w-3 fill-current" />
+									</Button>
+								) : (
 							<Button
 								size="icon"
 								onClick={handleSubmit}
@@ -269,9 +280,14 @@ const ChatPanel = (
 								) : (
 									<ArrowUp className="h-3.5 w-3.5 " />
 								)}
-							</Button>
+							</Button> )}
 						</div>
 					</div>
+					<p className="mt-1.5 text-center text-[10px] text-white/15">
+						{isGenerating || isImproving
+							? "Click ↵ to stop generation"
+							: "↵ to send · Shift↵ for new line"}
+					</p>
 				</div>
 			</div>
 		</div >
